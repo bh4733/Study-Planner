@@ -1,0 +1,19 @@
+{
+    "name": "study-planner-api",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "app.js",
+    "scripts": {
+        "start": "node app.js"
+    },
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "cors": "^2.8.5",
+        "express": "^4.22.2",
+        "install": "^0.13.0",
+        "jsonwebtoken": "^9.0.3",
+        "nedb-promises": "^6.2.0",
+        "npm": "^11.16.0",
+        "uuid": "^14.0.0"
+    }
+}
