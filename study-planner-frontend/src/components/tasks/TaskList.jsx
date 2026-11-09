@@ -1,8 +1,8 @@
 import TaskCard from "./taskcard";
 
-const TaskList = ({ tasks }) => {
+export default function TaskList({ tasks }) {
   return (
-    <ul>
+    <ul className="task-list">
       {tasks.map((task) => (
         <li key={task._id}>
           <TaskCard task={task} />
@@ -10,6 +10,4 @@ const TaskList = ({ tasks }) => {
       ))}
     </ul>
   );
-};
-
-export default TaskList;
+}

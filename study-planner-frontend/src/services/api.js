@@ -46,16 +46,14 @@ const request = async (path, { method = "GET", body, token } = {}) => {
   return data;
 };
 
-export const loginUser = async (credentials) => {
-  const res = await fetch(`${BASE_URL}/users/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(credentials),
-  });
+// Users
+export const loginUser = (credentials) =>
+  request("/users/login", { method: "POST", body: credentials });
 
-  return res.json();
-};
+export const registerUser = (details) =>
+  request("/users/register", { method: "POST", body: details });
 
+// Tasks
 export const getTasks = (token, filters = {}) => {
   const params = new URLSearchParams(
     Object.entries(filters).filter(

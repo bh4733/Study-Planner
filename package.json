@@ -1,0 +1,13 @@
+{
+  "name": "study-planner",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm install --prefix server && npm install --prefix study-planner-frontend",
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev --prefix server\" \"npm run dev --prefix study-planner-frontend\"",
+    "start": "concurrently -n api,web -c blue,magenta \"npm start --prefix server\" \"npm run dev --prefix study-planner-frontend\"",
+    "seed": "npm run seed --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

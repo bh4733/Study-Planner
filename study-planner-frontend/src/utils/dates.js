@@ -16,12 +16,16 @@ export const formatDate = (value) => {
     : "No deadline";
 };
 
-export const formatDateForInput = (value) => {
-  const date = parseDay(value);
-  return date ? date.toISOString().split("T")[0] : "";
+export const todayISO = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 };
 
-// Whole days from today to the deadline (negative = overdue), or null if none
+export const formatDateForInput = (value) =>
+  typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+
 export const daysUntil = (value) => {
   const date = parseDay(value);
   if (!date) return null;

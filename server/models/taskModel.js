@@ -1,96 +1,68 @@
 import { taskDB } from "../db/database.js";
 import { v4 as uuidv4 } from "uuid";
 
-// ✅ Allowed values (important for validation)
-const VALID_STATUS = ["not-started", "underway", "completed"];
-const VALID_PRIORITY = ["low", "medium", "high"];
+// Escape special regex characters so a search like "C++" doesn't break the query
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// ✅ CREATE TASK
-export const createTask = async (task) => {
-  const newTask = {
+export const createTask = (userId, data) => {
+  const now = new Date();
+  return taskDB.insert({
     _id: uuidv4(),
-
-    userId: task.userId,
-
-    title: task.title || "Untitled Task",
-    description: task.description || "",
-
-    module: task.module || "General",
-
-    deadline: task.deadline || null,
-
-    priority: VALID_PRIORITY.includes(task.priority) ? task.priority : "medium",
-
+    title: "",
+    description: "",
+    module: "General",
+    deadline: null,
+    startDate: null,
+    priority: "medium",
     status: "not-started",
-
-    createdAt: new Date(),
-    updatedAt: new Date(),
-
-    tags: Array.isArray(task.tags) ? task.tags : [],
-    estimatedHours: task.estimatedHours || 0,
+    tags: [],
+    estimatedHours: 0,
     actualHours: 0,
-    notes: task.notes || "",
-  };
-
-  return taskDB.insert(newTask);
+    notes: "",
+    ...data,
+    userId, // set last so nothing in data can overwrite it
+    createdAt: now,
+    updatedAt: now,
+  });
 };
 
-// ✅ GET TASKS
 export const getTasksByUser = (userId, filters = {}) => {
   const query = { userId };
 
-  // ✅ filtering
   if (filters.module) query.module = filters.module;
   if (filters.priority) query.priority = filters.priority;
   if (filters.status) query.status = filters.status;
 
-  return taskDB.find(query);
+  if (filters.deadlineFrom || filters.deadlineTo) {
+    query.deadline = {};
+    if (filters.deadlineFrom) query.deadline.$gte = filters.deadlineFrom;
+    if (filters.deadlineTo) query.deadline.$lte = filters.deadlineTo;
+  }
+
+  if (filters.q) {
+    const pattern = new RegExp(escapeRegex(filters.q), "i"); // case-insensitive
+    query.$or = [
+      { title: { $regex: pattern } },
+      { description: { $regex: pattern } },
+      { module: { $regex: pattern } },
+    ];
+  }
+
+  return taskDB.find(query).sort({ deadline: 1 });
 };
 
-// ✅ UPDATE TASK
-export const updateTask = async (id, update) => {
-  // ✅ prevent overwriting critical fields
-  delete update._id;
-  delete update.userId;
-  delete update.createdAt;
+// The userId condition is what stops one user from reading another user's task
+export const getTaskById = (id, userId) => taskDB.findOne({ _id: id, userId });
 
-  // ✅ validate priority
-  if (update.priority && !VALID_PRIORITY.includes(update.priority)) {
-    throw new Error("Invalid priority value");
-  }
-
-  // ✅ validate status
-  if (update.status && !VALID_STATUS.includes(update.status)) {
-    throw new Error("Invalid status value");
-  }
-
-  return taskDB.update(
-    { _id: id },
-    {
-      $set: {
-        ...update,
-        updatedAt: new Date(),
-      },
-    }
+export const updateTask = async (id, userId, changes) => {
+  const count = await taskDB.update(
+    { _id: id, userId },
+    { $set: { ...changes, updatedAt: new Date() } }
   );
+  return count ? getTaskById(id, userId) : null;
 };
 
-// ✅ DELETE TASK
-export const deleteTask = (id) => taskDB.remove({ _id: id });
-
-// ✅ UPDATE STATUS (more robust)
-export const updateStatus = async (id, status) => {
-  if (!VALID_STATUS.includes(status)) {
-    throw new Error("Invalid status value");
-  }
-
-  return taskDB.update(
-    { _id: id },
-    {
-      $set: {
-        status,
-        updatedAt: new Date(),
-      },
-    }
-  );
+export const deleteTask = async (id, userId) => {
+  const count = await taskDB.remove({ _id: id, userId });
+  return count > 0;
 };

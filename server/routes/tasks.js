@@ -1,5 +1,12 @@
 import express from "express";
 import {
+  createTask,
+  getTasksByUser,
+  getTaskById,
+  updateTask,
+  deleteTask,
+} from "../models/taskModel.js";
+import {
   validateTask,
   validateFilters,
   VALID_STATUS,
@@ -7,60 +14,85 @@ import {
 import { authenticate } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/asynchandler.js";
 
-import {
-  createTask,
-  getTasksByUser,
-  updateTask,
-  deleteTask,
-  updateStatus,
-} from "../models/taskModel.js";
-
 const router = express.Router();
 
-// ✅ CREATE TASK
-router.post("/", authenticate, async (req, res) => {
-  try {
-    const task = await createTask({
-      ...req.body,
-      userId: req.userId,
-    });
+// Every task route requires login, so no individual route can forget it
+router.use(authenticate);
 
+const hasErrors = (errors) => Object.keys(errors).length > 0;
+const validationFailed = (res, details) =>
+  res.status(400).json({ error: "Validation failed", details });
+const notFound = (res) => res.status(404).json({ error: "Task not found" });
+
+// GET /api/tasks?q=&module=&status=&priority=&deadlineFrom=&deadlineTo=
+router.get(
+  "/",
+  asyncHandler(async (req, res) => {
+    const { filters, errors } = validateFilters(req.query);
+    if (hasErrors(errors)) return validationFailed(res, errors);
+    res.json(await getTasksByUser(req.user.userId, filters));
+  })
+);
+
+// GET /api/tasks/:id
+router.get(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const task = await getTaskById(req.params.id, req.user.userId);
+    if (!task) return notFound(res);
     res.json(task);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  })
+);
 
-// ✅ GET USER TASKS
-router.get("/", authenticate, async (req, res) => {
-  try {
-    const tasks = await getTasksByUser(req.user.userId);
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// POST /api/tasks
+router.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    const { data, errors } = validateTask(req.body);
+    if (hasErrors(errors)) return validationFailed(res, errors);
+    const task = await createTask(req.user.userId, data);
+    res.status(201).json(task);
+  })
+);
 
-// ✅ UPDATE TASK
-router.put("/:id", authenticate, async (req, res) => {
-  await updateTask(req.params.id, req.body);
-  res.json({ message: "Updated" });
-});
+// PUT /api/tasks/:id
+router.put(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const existing = await getTaskById(req.params.id, req.user.userId);
+    if (!existing) return notFound(res);
 
-// ✅ DELETE TASK
-router.delete("/:id", authenticate, async (req, res) => {
-  await deleteTask(req.params.id);
-  res.json({ message: "Deleted" });
-});
+    const { data, errors } = validateTask(req.body, existing);
+    if (hasErrors(errors)) return validationFailed(res, errors);
 
-// ✅ CHANGE STATUS
+    res.json(await updateTask(req.params.id, req.user.userId, data));
+  })
+);
 
-router.patch("/:id/status", async (req, res) => {
-  const { status } = req.body;
+// PATCH /api/tasks/:id/status
+router.patch(
+  "/:id/status",
+  asyncHandler(async (req, res) => {
+    const { status } = req.body;
+    if (!VALID_STATUS.includes(status)) {
+      return validationFailed(res, {
+        status: `Status must be one of: ${VALID_STATUS.join(", ")}`,
+      });
+    }
+    const updated = await updateTask(req.params.id, req.user.userId, { status });
+    if (!updated) return notFound(res);
+    res.json(updated);
+  })
+);
 
-  await updateStatus(req.params.id, status);
-
-  res.json({ message: "Status updated" });
-});
+// DELETE /api/tasks/:id
+router.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const deleted = await deleteTask(req.params.id, req.user.userId);
+    if (!deleted) return notFound(res);
+    res.json({ message: "Task deleted", id: req.params.id });
+  })
+);
 
 export default router;
