@@ -1,4 +1,11 @@
 import express from "express";
+import {
+  validateTask,
+  validateFilters,
+  VALID_STATUS,
+} from "../utils/validatetask.js";
+import { authenticate } from "../middleware/auth.js";
+import { asyncHandler } from "../utils/asynchandler.js";
 
 import {
   createTask,
@@ -7,8 +14,6 @@ import {
   deleteTask,
   updateStatus,
 } from "../models/taskModel.js";
-
-import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 

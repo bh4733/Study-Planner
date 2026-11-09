@@ -1,9 +1,11 @@
+import TaskCard from "./taskcard";
+
 const TaskList = ({ tasks }) => {
   return (
     <ul>
       {tasks.map((task) => (
         <li key={task._id}>
-          {task.title} - {task.priority}
+          <TaskCard task={task} />
         </li>
       ))}
     </ul>

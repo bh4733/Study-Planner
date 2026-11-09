@@ -1,54 +1,91 @@
-import { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
+import { useAuth } from "../hooks/useAuth";
+import FormField from "../components/forms/formfield";
+import Alert from "../components/ui/alert";
 
-const Login = () => {
-  const { login } = useContext(AuthContext);
+export default function Login() {
+  const { login, sessionMessage } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [form, setForm] = useState({
-    username: "",
+    username: location.state?.username ?? "",
     password: "",
   });
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = async () => {
-    const res = await fetch("http://localhost:3000/api/users/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+  const justRegistered = Boolean(location.state?.registered);
+  const notice = justRegistered
+    ? "Account created. You can log in now."
+    : sessionMessage;
 
-    const data = await res.json();
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
-    console.log("login response:", data);
-
-    login(data.token);
-
-    console.log("✅ calling navigate...");
-    navigate("/dashboard");
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // stop the browser reloading the page
+    if (!form.username.trim() || !form.password) {
+      setError("Enter your username and password.");
+      return;
+    }
+    setError("");
+    setSubmitting(true);
+    try {
+      await login(form.username.trim(), form.password);
+      navigate(location.state?.from?.pathname || "/dashboard", {
+        replace: true,
+      });
+    } catch (err) {
+      setError(err.message);
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div>
-      <input
-        placeholder="username"
-        onChange={(e) => setForm({ ...form, username: e.target.value })}
-      />
+    <div className="auth-card">
+      <h1>Log in</h1>
+      <p className="muted">Welcome back to your study planner.</p>
 
-      <input
-        type="password"
-        placeholder="password"
-        onChange={(e) => setForm({ ...form, password: e.target.value })}
-      />
+      {!error && (
+        <Alert type={justRegistered ? "success" : "info"}>{notice}</Alert>
+      )}
+      <Alert>{error}</Alert>
 
-      <button onClick={submit}>Login</button>
+      <form onSubmit={handleSubmit} noValidate>
+        <FormField
+          label="Username"
+          name="username"
+          value={form.username}
+          onChange={handleChange}
+          autoComplete="username"
+          autoFocus
+          required
+        />
+        <FormField
+          label="Password"
+          name="password"
+          type="password"
+          value={form.password}
+          onChange={handleChange}
+          autoComplete="current-password"
+          required
+        />
+        <button
+          type="submit"
+          className="button button-block"
+          disabled={submitting}
+        >
+          {submitting ? "Logging in…" : "Log in"}
+        </button>
+      </form>
 
-      <p>
-        Don’t have an account?
-        <button onClick={() => navigate("/register")}>Register</button>
+      <p className="auth-switch">
+        Don't have an account? <Link to="/register">Register</Link>
       </p>
     </div>
   );
-};
-
-export default Login;
+}

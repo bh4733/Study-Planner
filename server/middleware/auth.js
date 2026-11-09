@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
-
-const SECRET = "supersecretkey";
+import { JWT_SECRET } from "../config.js";
 
 export const authenticate = (req, res, next) => {
   const token = req.headers.authorization;
@@ -10,7 +9,7 @@ export const authenticate = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch {
